@@ -134,6 +134,15 @@ public class Main
                     stop(port,key);
                     return;
                 }
+                
+                if (arg.startsWith("--command="))
+                {
+                    int port = Integer.parseInt(Config.getProperty("STOP.PORT","-1"));
+                    String key = Config.getProperty("STOP.KEY",null);
+                    String command = arg.substring(10);
+                    command(port,key,command);
+                    return;
+                }
 
                 if ("--version".equals(arg) || "-v".equals(arg) || "--info".equals(arg))
                 {
@@ -187,9 +196,20 @@ public class Main
                         // Toss a unique exit code indicating this failure.
                         usageExit(ERR_LOGGING);
                     }
-                    PrintStream logger = new PrintStream(new FileOutputStream(startLog,false));
-                    System.setOut(logger);
-                    System.setErr(logger);
+                    final PrintStream logger = new PrintStream(new FileOutputStream(startLog,false));
+                    PrintStream logger1 = new PrintStream(System.out){
+                    	public void write(byte buf[], int off, int len){
+                    		logger.write(buf, off, len);
+                    		super.write(buf, off, len);
+                    	}
+                    	public void write(int b){
+                    		logger.write(b);
+                    		super.write(b);
+                    	}
+                    };
+                    
+                    System.setOut(logger1);
+                    System.setErr(logger1);
                     System.out.println("Establishing start.log on " + new Date());
                     continue;
                 }
@@ -1001,6 +1021,14 @@ public class Main
      */
     public void stop(int port, String key)
     {
+    	command(port,key,"stop");
+    }
+    
+    /**
+     * Stop a running jetty instance.
+     */
+    public void command(int port, String key, String command)
+    {
         int _port = port;
         String _key = key;
 
@@ -1021,7 +1049,7 @@ public class Main
             try
             {
                 OutputStream out = s.getOutputStream();
-                out.write((_key + "\r\nstop\r\n").getBytes());
+                out.write((_key + "\r\n"+command+"\r\n").getBytes());
                 out.flush();
             }
             finally
